@@ -91,11 +91,11 @@ Accepts both UUIDs and team-key identifiers. Prefer identifiers in user-visible 
 
 Apply `agentConfig.worktrees` from the project response:
 
-| `worktrees.create` | Action |
-|---|---|
-| `'always'` | Create `.worktrees/<featureName>` with branch `feature/<featureName>` |
-| `'ask'` (default) | Ask the user before creating |
-| `'never'` | Work in current branch |
+| `worktrees.create` | Action                                                                |
+| ------------------ | --------------------------------------------------------------------- |
+| `'always'`         | Create `.worktrees/<featureName>` with branch `feature/<featureName>` |
+| `'ask'` (default)  | Ask the user before creating                                          |
+| `'never'`          | Work in current branch                                                |
 
 `featureName` = kebab-case slug from the issue title, max 40 chars. **One session = one worktree.** Subagents inherit the parent's `cwd`.
 
@@ -155,6 +155,7 @@ Then fall back to auto-resolution (null behavior) for that state.
 ### 3 — Consistency check (multi-project sessions)
 
 If you have already loaded another project in the same session, compare:
+
 - Do both projects belong to the same team? (same `teamId`) — if not, each needs its own `jv_list_issue_statuses` call; don't reuse cached statuses across teams.
 - Do both projects have similar agentConfig structures? If one has a full config and another has none, note it to the user so they can align them.
 
@@ -170,13 +171,13 @@ If you have already loaded another project in the same session, compare:
 
 Same taxonomy as `jv-trello` and `linear` — keep it consistent across platforms.
 
-| Tag | When |
-|---|---|
-| `[PLAN]` | Before starting — what steps you will take and why |
-| `[DECISION]` | At the moment you make a non-trivial judgment call |
-| `[RESULT]` | What was done, what changed, deliverable or answer |
-| `[NOTE]` | Context: worktree path, session info, admin notes |
-| `[QUESTION]` | User input needed — blocks progress |
+| Tag          | When                                                                          |
+| ------------ | ----------------------------------------------------------------------------- |
+| `[PLAN]`     | Before starting — what steps you will take and why                            |
+| `[DECISION]` | At the moment you make a non-trivial judgment call                            |
+| `[RESULT]`   | What was done, what changed, deliverable or answer                            |
+| `[NOTE]`     | Context: worktree path, session info, admin notes                             |
+| `[QUESTION]` | User input needed — blocks progress                                           |
 | `[LEARNING]` | At review approval — distilled journey, decisions, reversals, and key insight |
 
 **A diff with zero `[DECISION]` comments is a process failure.**
@@ -211,12 +212,12 @@ Same taxonomy as `jv-trello` and `linear` — keep it consistent across platform
 
 Use `jv_lifecycle_transition` for all standard lifecycle moves — it handles state + `AI_WORKING` label atomically in one call, and auto-creates the label if missing. Mirrors `jv_lifecycle_transition` in `jv-trello`.
 
-| Event | Call | Labels removed | Labels added |
-|---|---|---|---|
-| Agent picks up issue | `jv_lifecycle_transition(id, "pickup")` → In Progress | `AI_READY` (if present) | `AI_WORKING` |
-| Agent finishes | Write/update `[LEARNING]`, stash ID, then `jv_lifecycle_transition(id, "complete")` → In Review | `AI_WORKING` | — |
-| Agent blocked | Post `[QUESTION]`, stop. No state move needed. | — | — |
-| Human approves (In Review → Done) | Human transitions in Linear UI; agent posts `[NOTE] Review approved.` + removes worktree | — | — |
+| Event                             | Call                                                                                            | Labels removed          | Labels added |
+| --------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------- | ------------ |
+| Agent picks up issue              | `jv_lifecycle_transition(id, "pickup")` → In Progress                                           | `AI_READY` (if present) | `AI_WORKING` |
+| Agent finishes                    | Write/update `[LEARNING]`, stash ID, then `jv_lifecycle_transition(id, "complete")` → In Review | `AI_WORKING`            | —            |
+| Agent blocked                     | Post `[QUESTION]`, stop. No state move needed.                                                  | —                       | —            |
+| Human approves (In Review → Done) | Human transitions in Linear UI; agent posts `[NOTE] Review approved.` + removes worktree        | —                       | —            |
 
 Response shape:
 
@@ -303,6 +304,7 @@ When the user says "reviewed", "approved", "looks good":
 ```
 
 **Rules:**
+
 - Write it even on a single-pass issue — a null-reversal record is still useful signal.
 - Never summarise what the `[RESULT]` already said. Focus on the journey and the insight, not the deliverable.
 - If the user said "skip learning" or "no learning comment", skip it — user instruction overrides.
@@ -325,11 +327,11 @@ last_synced: 2026-05-12T14:30:00Z
 
 Fields (all optional, only write what's relevant):
 
-| Field | When set | Purpose |
-|---|---|---|
-| `learning_comment_id` | At first `[LEARNING]` write | Direct lookup on cycles 2+ — avoids `jv_list_comments` scan |
-| `obsidian_page` | After Obsidian sync | The wiki page that received this issue's log entry. Helps re-sync on reversal/correction. |
-| `last_synced` | After Obsidian sync | ISO 8601 timestamp of last wiki write |
+| Field                 | When set                    | Purpose                                                                                   |
+| --------------------- | --------------------------- | ----------------------------------------------------------------------------------------- |
+| `learning_comment_id` | At first `[LEARNING]` write | Direct lookup on cycles 2+ — avoids `jv_list_comments` scan                               |
+| `obsidian_page`       | After Obsidian sync         | The wiki page that received this issue's log entry. Helps re-sync on reversal/correction. |
+| `last_synced`         | After Obsidian sync         | ISO 8601 timestamp of last wiki write                                                     |
 
 **Read pattern:**
 
@@ -342,6 +344,7 @@ const meta = parseLines(match?.[1] ?? "");
 **Write pattern:** rebuild the block with current fields and replace the existing one (or append if absent), then `jv_save_issue({ id, description })`.
 
 **Don't:**
+
 - Put metadata anywhere else in the description — keep it in this block only.
 - Strip the block on regular description edits — preserve it.
 - Rely on labels or comments for metadata that the skill needs to read mechanically.
@@ -379,11 +382,10 @@ The wiki at `/Users/juanvieira/development/knowledge/Brain1` (`~/development/kno
 
    Full frontmatter format defined in Brain1 `CLAUDE.md` § Conventions → Linear linkage. After creation, set `obsidian_page` in the issue meta block to the resolved page title.
 
-   **Per-issue routing for `kind: "learning"`:** the hub page always gets a `## Linear log` row, but completed issues may *also* spawn or update a dedicated topic page:
-
+   **Per-issue routing for `kind: "learning"`:** the hub page always gets a `## Linear log` row, but completed issues may _also_ spawn or update a dedicated topic page:
    - **Update an existing wiki page** if `obsidian search query="<topic from issue title>"` finds a match — append to that page's relevant section, link from hub.
    - **Create a new `concept` page** (`wiki/<Topic>.md`, `type: concept`) when the `[LEARNING]` "What to remember" is a self-contained insight about a specific subject (e.g. "Tree-sitter incremental parses are O(log n)").
-   - **Create a new `area` page** (`wiki/Areas/<Topic>.md`, `type: area`) when the topic is a *survey* of a domain ("Surveyed Rust async runtimes — Tokio dominant…") or when the same topic has shown up in 3+ completed issues (promote to area).
+   - **Create a new `area` page** (`wiki/Areas/<Topic>.md`, `type: area`) when the topic is a _survey_ of a domain ("Surveyed Rust async runtimes — Tokio dominant…") or when the same topic has shown up in 3+ completed issues (promote to area).
    - **No new page, hub log row only** for tiny incidental learning (e.g. "Read the docs for `git switch -c`").
 
    If `agentConfig.memory.askWhenUncertain` is true and the routing decision is ambiguous, post `[QUESTION]` on the issue and stop — don't guess.
@@ -395,7 +397,6 @@ The wiki at `/Users/juanvieira/development/knowledge/Brain1` (`~/development/kno
    **Section placement on the wiki page** (when creating the section for the first time): always at the **bottom** of the page, after all hand-curated content. The section is auto-maintained — keeping it at the bottom protects user-written prose from being pushed down by accumulated entries. For auto-created stubs (page didn't exist before), the section sits below the H1 + one-line stub description. Once the section exists, only its rows update; the section never moves.
 
    Use:
-
    - **Substantive entry** (real `[LEARNING]` insight — reversals, edge cases, durable rules):
      ```
      - **<YYYY-MM-DD>** [<identifier> — <title>](<linear_url>)
@@ -434,6 +435,7 @@ ToolSearch: "select:mcp__jv-linear-mcp__jv_get_project,mcp__jv-linear-mcp__jv_li
 ```
 
 Add on demand (same `mcp__jv-linear-mcp__` prefix):
+
 - `jv_list_projects` — only if project name is unknown
 - `jv_list_issue_statuses` — only if creating issues with specific states
 - `jv_list_issue_labels` / `jv_create_issue_label` — only if managing labels beyond AI_WORKING
@@ -442,34 +444,34 @@ Add on demand (same `mcp__jv-linear-mcp__` prefix):
 
 ### Tool cheat-sheet
 
-| Goal | Tool |
-|---|---|
-| Project + config | `jv_get_project` |
-| Resolve identifier / get full issue | `jv_get_issue` |
-| Search by title or filter | `jv_list_issues` |
-| Create or update issue | `jv_save_issue` |
-| Read comment history | `jv_list_comments` |
-| Create or update comment | `jv_save_comment` |
-| Lifecycle move | `jv_lifecycle_transition` |
-| Images in issue body | `jv_extract_images` |
-| Download attachment to local file | `jv_download_attachment` |
-| Workflow states | `jv_list_issue_statuses` |
-| Labels | `jv_list_issue_labels` / `jv_create_issue_label` |
+| Goal                                | Tool                                             |
+| ----------------------------------- | ------------------------------------------------ |
+| Project + config                    | `jv_get_project`                                 |
+| Resolve identifier / get full issue | `jv_get_issue`                                   |
+| Search by title or filter           | `jv_list_issues`                                 |
+| Create or update issue              | `jv_save_issue`                                  |
+| Read comment history                | `jv_list_comments`                               |
+| Create or update comment            | `jv_save_comment`                                |
+| Lifecycle move                      | `jv_lifecycle_transition`                        |
+| Images in issue body                | `jv_extract_images`                              |
+| Download attachment to local file   | `jv_download_attachment`                         |
+| Workflow states                     | `jv_list_issue_statuses`                         |
+| Labels                              | `jv_list_issue_labels` / `jv_create_issue_label` |
 
 ### Response shapes (trimmed by wrapper — smaller than upstream)
 
-| Tool | Returns |
-|---|---|
-| `jv_get_project` | `{ id, name, description, url, status, teams[], agentConfig }` (~0.5 KB) |
-| `jv_list_issues` | `[{ id, identifier, title, url, state, labels[], assignee }]` (compact per item) |
-| `jv_get_issue` | slim + `description`, `attachments[]` |
-| `jv_save_issue` | `{ id, identifier, state, labels[] }` (~0.2 KB — much smaller than upstream) |
-| `jv_list_comments` | `[{ id, body, createdAt, updatedAt }]` (chronological) |
-| `jv_save_comment` | `{ id }` |
-| `jv_lifecycle_transition` | `{ id, identifier, state, labelsAdded[], labelsRemoved[] }` |
-| `jv_extract_images` | inline image content block(s) + `[{ url, alt, path, bytes, mimeType }]` |
-| `jv_download_attachment` | `{ path, bytes, mimeType }` |
-| `jv_list_issue_statuses` | `[{ id, name, type }]` |
+| Tool                      | Returns                                                                          |
+| ------------------------- | -------------------------------------------------------------------------------- |
+| `jv_get_project`          | `{ id, name, description, url, status, teams[], agentConfig }` (~0.5 KB)         |
+| `jv_list_issues`          | `[{ id, identifier, title, url, state, labels[], assignee }]` (compact per item) |
+| `jv_get_issue`            | slim + `description`, `attachments[]`                                            |
+| `jv_save_issue`           | `{ id, identifier, state, labels[] }` (~0.2 KB — much smaller than upstream)     |
+| `jv_list_comments`        | `[{ id, body, createdAt, updatedAt }]` (chronological)                           |
+| `jv_save_comment`         | `{ id }`                                                                         |
+| `jv_lifecycle_transition` | `{ id, identifier, state, labelsAdded[], labelsRemoved[] }`                      |
+| `jv_extract_images`       | inline image content block(s) + `[{ url, alt, path, bytes, mimeType }]`          |
+| `jv_download_attachment`  | `{ path, bytes, mimeType }`                                                      |
+| `jv_list_issue_statuses`  | `[{ id, name, type }]`                                                           |
 
 ---
 
