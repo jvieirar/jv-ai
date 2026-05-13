@@ -2,23 +2,32 @@
 
 Personal monorepo for AI orchestration: Claude Code skills, subagents, harness configs, and supporting glue.
 
-Skills here are consumed by [Claude Code](https://docs.claude.com/en/docs/claude-code), [Codex](https://github.com/openai/codex), and other agent harnesses via the [`skills` CLI](https://github.com/vercel-labs/agent-skills) from Vercel Labs.
+> **New machine?** Follow [`docs/setup.md`](docs/setup.md) end-to-end.
 
 ## Layout
 
 ```
 skills/        # Agent skills (SKILL.md per directory)
   jv-linear/   # Lean Linear MCP workflow (jv-linear-mcp wrapper)
-  linear/      # Stock linear-server MCP workflow
-  jv-trello/   # Trello MCP workflow
   graphify/    # Any input → knowledge graph (Brain1 / Obsidian vault)
 agents/        # Claude Code subagents
   brain1-maintainer.md  # Mechanical maintenance for the Brain1 vault
+mcp/           # Cross-harness MCP server config
+  servers.json     # Canonical set of MCP servers (source of truth)
+  targets.json     # Where to fan them out (Claude Code, Pi, ~/.agents mirror, …)
+  .env.example     # Optional path overrides (copy to mcp/.env, gitignored)
+claude/
+  settings.template.json  # Snapshot of worth-keeping keys for ~/.claude/settings.json
+scripts/
+  sync-mcp.ts    # Idempotent, additive sync from mcp/servers.json → every target
+docs/
+  setup.md       # New-machine bootstrap runbook
+AGENTS.md      # Cross-harness rules (used by Claude Code, Codex, Copilot CLI, Gemini)
 ```
 
 ## Installing skills
 
-Use Vercel's `skills` CLI — `bunx` runs it without a global install.
+Skills are consumed via Vercel Labs' [`skills` CLI](https://github.com/vercel-labs/agent-skills). `bunx` runs it without a global install.
 
 ```bash
 # Install everything from this repo into the current agent (project-local)
@@ -44,7 +53,7 @@ bunx skills update jv-linear graphify    # update specific ones
 bunx skills ls                           # see what's installed
 ```
 
-> Note: `skills update` re-pulls from the source repo. It does not diff against local edits, so if you've patched a skill in `~/.claude/skills/<name>` directly, that change will be overwritten on update. Edit here and re-`add` instead.
+> `skills update` re-pulls from the source repo. It does not diff against local edits, so if you've patched a skill in `~/.claude/skills/<name>` directly, that change will be overwritten on update. Edit here and re-`add` instead.
 
 ## Installing agents
 
@@ -54,8 +63,39 @@ The `skills` CLI handles skills, not subagents. Agents in `agents/` are plain ma
 ln -s "$PWD/agents/brain1-maintainer.md" ~/.claude/agents/brain1-maintainer.md
 ```
 
-## Working on a skill
+## Syncing MCP servers across harnesses
 
-1. Edit the `SKILL.md` in `skills/<name>/`.
-2. Re-run `bunx skills add juanvieiraio/jv-ai -s <name>` from a consuming agent to pull the new version, or sync your local `~/.claude/skills/<name>` manually while iterating.
-3. Commit. Push. Other agents pick it up on their next `skills update`.
+Each agent harness (Claude Code, Pi, Claude Desktop, Codex, …) reads its own MCP config file. `mcp/servers.json` is the single source of truth. `scripts/sync-mcp.ts` fans it out.
+
+```bash
+bun run sync-mcp                  # apply (default: skip + warn on conflict)
+bun run sync-mcp -- --dry-run     # show what would change, write nothing
+bun run sync-mcp -- --force       # canonical wins on conflict (overwrite)
+bun run sync-mcp -- --target pi   # one target only
+bun run sync-mcp -- --server jv-linear-mcp  # one server only
+```
+
+**Behavior**
+- **Additive** — only touches servers listed in `mcp/servers.json`. Anything else in the target file (other MCPs, Claude Code's full state JSON, etc.) is preserved.
+- **Idempotent** — diffs against the target after normalizing noise fields (`type:"stdio"`, empty `args`/`env`). Re-running with no changes writes nothing.
+- **Conflict-safe by default** — if a server with the same name exists in a target with a different config, the script leaves it alone and prints a warning. Use `--force` to override.
+
+**Targets** (`mcp/targets.json`)
+
+| Name | Path | Kind | Enabled by default |
+|---|---|---|---|
+| `claude-code` | `~/.claude.json` (`mcpServers` key) | json-nested | ✓ |
+| `agents-mirror` | `~/.agents/mcp.json` | json-root | ✓ |
+| `pi` | `~/.pi/agent/mcp.json` | json-root | ✓ |
+| `claude-desktop` | `~/Library/Application Support/Claude/claude_desktop_config.json` | json-root | — |
+| `codex` | `~/.codex/config.toml` | toml-root | — (not implemented yet) |
+
+Flip `enabled: true` in `mcp/targets.json` to turn one on, or use `--include-disabled` to test against a disabled target without committing the flip.
+
+**Path placeholders**: `mcp/servers.json` supports `${VAR}` and `${VAR:-default}`. Real env vars win, then `mcp/.env` (gitignored, copy from `.env.example`). Prefer hardcoding? Just paste the absolute path — `pwd` inside the MCP source dir gets you the prefix.
+
+**Pre-flight**: stdio commands with absolute paths are verified to exist on disk before any write. Missing → red `! missing` and the script exits 1.
+
+**Adding a new MCP server**: edit `mcp/servers.json`, then `bun run sync-mcp`. That's it.
+
+**Pi note**: Pi doesn't natively support MCP. The user has `pi-mcp-adapter` installed (see `~/.pi/agent/settings.json`'s `packages` field) — the adapter reads `~/.pi/agent/mcp.json`, which is what we write to.

@@ -1,0 +1,30 @@
+{
+  "_comment": "Snapshot of the worth-keeping keys in ~/.claude/settings.json. Copy what you want; don't blindly replace your live file. Permissions and plugins are the load-bearing parts.",
+  "model": "opus",
+  "effortLevel": "medium",
+  "skipDangerousModePermissionPrompt": true,
+  "skipAutoPermissionPrompt": true,
+  "permissions": {
+    "allow": [
+      "mcp__jv-linear-mcp__*"
+    ]
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "notion@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "posthog@claude-plugins-official": true,
+    "fallow@fallow-skills": true,
+    "obsidian@obsidian-skills": true
+  },
+  "extraKnownMarketplaces": {
+    "fallow-skills": {
+      "source": { "source": "github", "repo": "fallow-rs/fallow-skills" }
+    },
+    "obsidian-skills": {
+      "source": { "source": "github", "repo": "kepano/obsidian-skills" }
+    }
+  }
+}

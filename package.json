@@ -1,12 +1,11 @@
 {
   "name": "jv-ai",
-  "module": "index.ts",
-  "type": "module",
   "private": true,
+  "type": "module",
+  "scripts": {
+    "sync-mcp": "bun run scripts/sync-mcp.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
   }
 }

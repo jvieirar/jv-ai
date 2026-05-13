@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "jv-linear-mcp": {
+      "command": "${JV_LINEAR_MCP_DIR:-${HOME}/development/codebases/tools/jv-linear-mcp}/scripts/start-mcp.sh"
+    }
+  }
+}
