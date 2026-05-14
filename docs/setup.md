@@ -20,25 +20,9 @@ Sanity check:
 bun --version && uv --version && claude --version && graphify --version
 ```
 
-## 1. Clone the MCP source
+## 1. Clone this repo
 
-This repo registers `jv-linear-mcp` by path. The source must exist before `sync-mcp` will succeed (pre-flight check enforces this).
-
-```bash
-mkdir -p ~/development/codebases/tools
-git clone https://github.com/<owner>/jv-linear-mcp.git \
-  ~/development/codebases/tools/jv-linear-mcp
-cd ~/development/codebases/tools/jv-linear-mcp
-cp .env.template .env.local
-$EDITOR .env.local                 # paste LINEAR_API_KEY (lin_api_…)
-bun install
-```
-
-> **Different location?** Two options:
-> - Set `JV_LINEAR_MCP_DIR=/path/to/jv-linear-mcp` in your shell rc, or copy `mcp/.env.example` → `mcp/.env` and edit there.
-> - Or edit `mcp/servers.json` directly: replace the `${VAR}` placeholder with the absolute path. Use `pwd` from inside the cloned MCP to grab it: `echo "$(pwd)/scripts/start-mcp.sh"`.
-
-## 2. Clone this repo
+`jv-linear-mcp` is vendored under `custom_mcps/jv-linear-mcp` — no separate clone needed.
 
 ```bash
 mkdir -p ~/development/codebases/ai
@@ -46,6 +30,20 @@ git clone https://github.com/<owner>/jv-ai.git ~/development/codebases/ai/jv-ai
 cd ~/development/codebases/ai/jv-ai
 bun install
 ```
+
+## 2. Configure the bundled Linear MCP
+
+```bash
+cd custom_mcps/jv-linear-mcp
+cp .env.template .env.local
+$EDITOR .env.local                 # paste LINEAR_API_KEY (lin_api_…)
+bun install
+cd ../..
+```
+
+> **Different location?** If you check the MCP out elsewhere (or symlink it), point the sync at it:
+> - Set `JV_LINEAR_MCP_DIR=/path/to/jv-linear-mcp` in your shell rc, or copy `mcp/.env.example` → `mcp/.env` and edit there.
+> - Or edit `mcp/servers.json` directly: replace the `${VAR}` placeholder with the absolute path. Use `pwd` from inside the MCP dir to grab it: `echo "$(pwd)/scripts/start-mcp.sh"`.
 
 ## 3. Install skills
 

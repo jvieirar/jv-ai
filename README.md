@@ -16,6 +16,8 @@ mcp/           # Cross-harness MCP server config
   servers.json     # Canonical set of MCP servers (source of truth)
   targets.json     # Where to fan them out (Claude Code, Pi, ~/.agents mirror, …)
   .env.example     # Optional path overrides (copy to mcp/.env, gitignored)
+custom_mcps/   # First-party MCP servers vendored into this repo
+  jv-linear-mcp/   # Lean Linear MCP wrapper (server source + start script)
 claude/
   settings.template.json  # Snapshot of worth-keeping keys for ~/.claude/settings.json
 scripts/
