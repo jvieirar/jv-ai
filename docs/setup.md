@@ -242,6 +242,7 @@ claude plugins install fallow@fallow-skills
 
 Open `mcp/targets.json` and flip `enabled: true` on additional targets (all are enabled by default now):
 
+- `pi` — Pi agent (`~/.pi/agent/mcp.json`)
 - `claude-desktop` — Claude Desktop macOS app
 - `gemini` — Google Gemini CLI (`~/.gemini/settings.json`)
 - `codex` — OpenAI Codex CLI (`~/.codex/config.toml`, TOML format)
