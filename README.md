@@ -89,8 +89,9 @@ bun run sync-mcp -- --server jv-linear-mcp  # one server only
 | `claude-code` | `~/.claude.json` (`mcpServers` key) | json-nested | ✓ |
 | `agents-mirror` | `~/.agents/mcp.json` | json-root | ✓ |
 | `pi` | `~/.pi/agent/mcp.json` | json-root | ✓ |
-| `claude-desktop` | `~/Library/Application Support/Claude/claude_desktop_config.json` | json-root | — |
-| `codex` | `~/.codex/config.toml` | toml-root | — (not implemented yet) |
+| `claude-desktop` | `~/Library/Application Support/Claude/claude_desktop_config.json` | json-root | ✓ |
+| `gemini` | `~/.gemini/settings.json` | json-root | ✓ |
+| `codex` | `~/.codex/config.toml` | toml-root | ✓ |
 
 Flip `enabled: true` in `mcp/targets.json` to turn one on, or use `--include-disabled` to test against a disabled target without committing the flip.
 

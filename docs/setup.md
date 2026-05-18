@@ -83,10 +83,10 @@ bun run sync-mcp                   # apply
 
 What it does:
 - Reads `mcp/servers.json` (with `${VAR}` expansion from real env + `mcp/.env`)
-- Writes into `~/.claude.json` (Claude Code) and `~/.agents/mcp.json` (mirror)
+- Writes into `~/.claude.json` (Claude Code), `~/.agents/mcp.json` (mirror), `~/.gemini/settings.json` (Gemini CLI), and `~/.codex/config.toml` (Codex CLI)
 - Additive + idempotent
 
-Targets are declared in `mcp/targets.json`. The Minimal tier only needs `claude-code` enabled (default).
+Targets are declared in `mcp/targets.json`. All enabled targets receive the sync; disable any you don't need by setting `"enabled": false`.
 
 ### 4. Verify
 
@@ -240,11 +240,12 @@ claude plugins install fallow@fallow-skills
 
 ### 5. Expand MCP sync targets
 
-Open `mcp/targets.json` and flip `enabled: true` on additional targets:
+Open `mcp/targets.json` and flip `enabled: true` on additional targets (all are enabled by default now):
 
 - `pi` — Pi agent (`~/.pi/agent/mcp.json`)
 - `claude-desktop` — Claude Desktop macOS app
-- `codex` — Codex (TOML; not yet implemented by `sync-mcp`)
+- `gemini` — Google Gemini CLI (`~/.gemini/settings.json`)
+- `codex` — OpenAI Codex CLI (`~/.codex/config.toml`, TOML format)
 
 Then re-apply:
 
