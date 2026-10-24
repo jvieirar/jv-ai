@@ -20,6 +20,16 @@ Why: most images in clipped/saved content are decorative (logos, badges, charts 
 
 When the harness exposes a `currentDate` field in system context, trust it over training-data assumptions.
 
+### A.4 Shared Notion skill
+
+`skills/jv-notion/SKILL.md` mirrors the live `~/.agents/skills/jv-notion/SKILL.md`.
+After editing either copy, inspect the diff, run `bun run sync-notion-skill` with the
+explicit `--from-global` or `--to-global` direction, and verify `--check`. Commit both
+repositories when both changed. Do not replace existing harness links or sync unrelated
+skills. The repository check command is `bun run check`; it tests sync behavior using
+temporary files and never modifies installed skills. Also run the live drift check
+when the global copy is installed.
+
 ---
 
 ## B. Package management

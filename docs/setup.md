@@ -265,6 +265,10 @@ claude plugins list                # marketplaces + plugins enabled
 
 ## Maintenance
 
+- **Notion skill:** keep `skills/jv-notion/SKILL.md` and `~/.agents/skills/jv-notion/SKILL.md`
+  synchronized with `bun run sync-notion-skill --check`. After reviewing differences,
+  use `--from-global` for live edits or `--to-global` for repository updates. Preserve
+  Claude's existing link to the shared copy. See the README's Shared Notion skill section.
 - **Add a new MCP:** edit `mcp/servers.json`, then `bun run sync-mcp`.
 - **Update a skill:** edit `skills/<name>/SKILL.md` here, commit, push, then `bunx skills update <name>` on each machine.
 - **Add a new subagent:** drop it in `agents/`, add a symlink line to the Comprehensive setup step 4.

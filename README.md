@@ -9,6 +9,7 @@ Personal monorepo for AI orchestration: Claude Code skills, subagents, harness c
 ```
 skills/        # Agent skills (SKILL.md per directory)
   jv-linear/   # Lean Linear MCP workflow (jv-linear-mcp wrapper)
+  jv-notion/   # Multi-client Notion hub, native ticket IDs and review workflow
   graphify/    # Any input → knowledge graph (Brain1 / Obsidian vault)
 agents/        # Claude Code subagents
   brain1-maintainer.md  # Mechanical maintenance for the Brain1 vault
@@ -33,19 +34,42 @@ Skills are consumed via Vercel Labs' [`skills` CLI](https://github.com/vercel-la
 
 ```bash
 # Install everything from this repo into the current agent (project-local)
-bunx skills add juanvieiraio/jv-ai --all
+bunx skills add jvieirar/jv-ai --all
 
 # Install globally (user-level, ~/.claude/skills)
-bunx skills add juanvieiraio/jv-ai --all --global
+bunx skills add jvieirar/jv-ai --all --global
 
 # Pick specific skills
-bunx skills add juanvieiraio/jv-ai -s jv-linear,graphify -g
+bunx skills add jvieirar/jv-ai -s jv-linear,graphify -g
 
 # List what's available without installing
-bunx skills add juanvieiraio/jv-ai --list
+bunx skills add jvieirar/jv-ai --list
 ```
 
-Replace `juanvieiraio/jv-ai` with the actual GitHub `owner/repo` once this repo is pushed.
+The repository is `jvieirar/jv-ai`.
+
+### Shared Notion skill
+
+`skills/jv-notion/SKILL.md` is the distributable copy of the live
+`~/.agents/skills/jv-notion/SKILL.md`. Keep both files synchronized:
+
+```bash
+bun run sync-notion-skill --check        # read-only drift check (also the default)
+bun run sync-notion-skill --from-global  # after editing the live ~/.agents copy
+bun run sync-notion-skill --to-global    # after editing or pulling this repository
+bun run sync-notion-skill --check
+bun run check                           # sync behavior tests; never changes live skills
+```
+
+Inspect differences before choosing a direction; explicit sync replaces the destination
+file. Commit repository changes here and live-copy changes in `~/.agents`. The helper
+syncs this skill's sole file, `SKILL.md`; extend it if supporting resources are added.
+It leaves other skills and harness configuration untouched. Codex and other native
+readers discover `~/.agents/skills`; Claude's skill link points there too. Keep that
+existing link instead of installing another independent Claude copy.
+
+Notion authentication and the repository's `.agents/task-tracking.json` select the
+client hub; this skill includes no customer IDs. It is independent of `jv-linear-mcp`.
 
 ### Updates
 
