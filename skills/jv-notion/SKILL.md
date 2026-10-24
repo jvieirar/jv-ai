@@ -48,9 +48,15 @@ For a requested workspace correction, prefer moving the original page tree with
 its media, links and review history. Verify the destination parent and descendants
 afterward. If cross-workspace moves require a signed-in browser or additional
 access, report that specific prerequisite and continue independent work. Do not
-silently recreate the pages, lose comments/history, or delete the originals as a
-substitute for an unavailable move. Store customer-specific workspace/hub mappings
-in project configuration, never in this global skill.
+silently recreate the pages or lose comments/history. If the user explicitly accepts
+recreation, transfer content and media with the destination connection, rebuild the
+hierarchy and internal links, and verify the result before removing source pages.
+When source removal is authorized, perform it through an available supported delete
+capability. If deletion is unavailable, report the originals still present and the
+specific cleanup action needed; a verified destination copy alone is not a completed
+move. Do not make browser login a prerequisite for copying when both connections
+already provide the necessary read/create/media access. Store customer-specific
+workspace/hub mappings in project configuration, never in this global skill.
 
 Read the config's existing structure rather than imposing a new JSON layout. It must
 resolve these logical mappings, directly or through referenced Notion pages:
