@@ -1,6 +1,6 @@
 ---
 name: jv-notion
-description: Manage tasks, epics, review feedback, and delivery evidence in a configured Notion hub. Use for Notion ticket work and lifecycle updates across repositories and customers; resolve the hub from repository configuration or explicit user selection.
+description: Manage tasks, epics, review feedback, delivery evidence, and linked living documents in a configured Notion hub. Use for Notion ticket work, lifecycle updates, and keeping documentation aligned with implementation or accepted feedback; resolve the hub from repository configuration or explicit user selection.
 ---
 
 # Notion task hub
@@ -170,6 +170,57 @@ to the claimed commit; mark it unverified when that cannot be confirmed. Leave
 inapplicable evidence absent; do not fabricate it or create/deploy a preview/PR
 without authorization. Read feedback images using supported media capabilities,
 preserve links/context, and disclose attachments you could not inspect.
+
+## Living documents and completion checks
+
+Documentation upkeep is part of the work, not an optional follow-up. At planning,
+identify the existing documents affected by the requested change through the ticket's
+Documents links, requirements and relevant hub/repository references. At review
+handoff, compare those documents with the implemented and verified outcome. Cover
+requirements, decisions, operational guides, user journeys and permission maps when
+affected; do not scan or rewrite unrelated documentation.
+
+- Respect each document's source of truth. Update canonical content in its existing
+  location; a Notion pointer to repository documentation stays a pointer rather than
+  becoming a competing copy. Preserve stable page URLs, hierarchy and unrelated edits.
+- Update instructions, terminology, examples, limitations and diagrams when the
+  behavior they describe changes. Separate agreed requirements from observed behavior
+  and permissions configured without a demonstrated workflow. Passing code checks
+  alone does not verify a user journey.
+- For affected journeys, recapture screenshots when navigation, controls, text,
+  permissions or displayed outcomes materially change. Use the relevant role, scope
+  and environment, wait for identity/data to settle, and inspect the capture before
+  attaching it. Retain useful unchanged captures; do not recapture everything for a
+  change that does not affect it. Never fabricate screenshots or imply production
+  verification from local or preview evidence.
+- Keep the story, screenshots, feature/permission map and related guidance consistent.
+  Preserve feedback context: if an old capture or step is referenced by unresolved
+  comments or approval, retain it as superseded with a link to the replacement until
+  that review context is resolved. Do not erase review history during routine upkeep.
+- Record meaningful updates with their reason and relevant ticket/change evidence
+  using the document's existing conventions. A last-verified date or revision must
+  describe what was actually checked, not merely the latest edit. Do not add database
+  properties or a new tracking system just to record this.
+- In the review result or handoff, name the documents updated, reviewed unchanged,
+  or still stale, with links and verification limits. If access, a required login,
+  authorization or an unavailable environment prevents an update, identify the exact
+  page/section and follow-up. Complete independent work, but do not claim documentation
+  is synchronized or the affected work fully complete while required updates remain.
+
+### Document identity and history
+
+Keep one current living document with a stable title and URL by default. Do not
+append artificial V1/V2 labels, duplicate pages for routine edits, or infer a release
+or approval from a document revision. Use Notion history for routine recovery and
+the existing review/change record for rationale; verify the workspace's actual
+history retention before relying on it for long-term evidence.
+
+Use explicit versioned baselines only when requested or required by the selected
+hub's policy, for example an approved specification or a release-specific guide that
+must remain referenceable. Preserve its actual scope, evidence, date and approval
+state, and clearly distinguish it from the current document. Do not invent an
+initial version, approved snapshot or release/versioning workflow. Native edit
+history alone does not establish human approval or an immutable baseline.
 
 ## Comments and learning
 
