@@ -26,6 +26,32 @@ policy. Use the selected hub's actual schema and terminology.
    never carry IDs from the first customer. Clarify conflicts with repository mappings
    before writes. State the selected hub/product and config source before mutation.
 
+### Workspace and connection verification
+
+Before creating or moving any project content, including standalone documents and
+private drafts, verify the selected connection can fetch the intended hub and target
+parent by their exact configured or user-selected IDs. An authenticated connection
+or a successful write elsewhere does not establish the correct workspace. Multiple
+Notion connections may belong to different workspaces even for the same user.
+Choose the connection that can access the intended project destination; verify
+workspace identity from available metadata and the fetched hub/parent, not a tool
+prefix, account email, default workspace or search ranking.
+
+Keep project documents under the selected project's existing hierarchy and follow
+its document conventions. A connector's private-draft default must never override
+an established project/workspace destination. If the intended destination is not
+accessible, resolve the connection or access gap before writing; do not create a
+fallback copy in Personal or another unrelated workspace. When a parent is missing,
+clarify only that placement, retaining the already selected workspace/project.
+
+For a requested workspace correction, prefer moving the original page tree with
+its media, links and review history. Verify the destination parent and descendants
+afterward. If cross-workspace moves require a signed-in browser or additional
+access, report that specific prerequisite and continue independent work. Do not
+silently recreate the pages, lose comments/history, or delete the originals as a
+substitute for an unavailable move. Store customer-specific workspace/hub mappings
+in project configuration, never in this global skill.
+
 Read the config's existing structure rather than imposing a new JSON layout. It must
 resolve these logical mappings, directly or through referenced Notion pages:
 
