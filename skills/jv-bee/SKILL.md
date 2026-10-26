@@ -15,6 +15,22 @@ This draft distils a real run, Cantoalegre CA-32/CA-34 (PR #82, 26/10/2026). The
 Repository instructions (`AGENTS.md`), ticket workflows (`jv-notion`, `jv-linear`) and policy (whether to create PRs,
 worktrees) always win over this skill. This skill decides **who does what and in what order**, not project rules.
 
+## Tickets and documents: always through jv-notion
+
+Ticket and document management goes through the **`jv-notion`** skill. Load it before the first ticket or document
+action, and follow its rules; this skill does not repeat them. That covers:
+
+- **Hub bootstrap**: `.agents/task-tracking.json` and the Settings page.
+- **Ticket identity**: native ids, verified after every create.
+- **Product and Epic**, and the reciprocal Related links.
+- **Lifecycle comments**: [PLAN], [DECISION], [RESULT], [NOTE], [QUESTION], [LEARNING].
+- **Status changes**, and never self-approving.
+- **Preview, PR and commit properties.**
+- **Living-document upkeep**: requirements, glossary, journeys, the role and permission map.
+
+The orchestrator owns every jv-notion action. Workers never touch the ticket hub. A project on Linear uses `jv-linear`
+the same way.
+
 ## When to use it, and when not
 
 Use it for work that has at least two independent parts (data and API, web UI, docs) and enough volume that delegating
@@ -94,8 +110,8 @@ cannot see its screens ships overflowing tables and crowded headers. Check first
 auth or CORS origin; in Cantoalegre, Better Auth only trusted `BETTER_AUTH_URL`, so another port answered 403 on
 sign-in.
 
-While workers run, do your own non-overlapping work: glossary, PRD, README walkthrough, ticket [PLAN] comments,
-hand-off file.
+While workers run, do your own non-overlapping work: the glossary, the PRD, the README walkthrough, and the hand-off
+file. Through **jv-notion**, set the tickets to working and post their [PLAN].
 
 ### 4. Review like a reviewer, then verify for real
 
@@ -139,16 +155,19 @@ Treat each finding on its merits. Accept, fix and test it, or reject it with a r
 Send one consolidated list (your findings plus the reviewer's) to the **same** worker agents. That way they keep their
 context, which is cheaper and more accurate than new agents. Keep the same ownership rules. Then run a **second
 reviewer pass** that only verifies the fixes and looks for regressions. Remaining edge cases you decide not to fix
-become a documented limit **and** a backlog ticket, so they are not forgotten.
+become a documented limit **and** a backlog ticket, created through jv-notion so it has a verified id, Product, Epic
+and Related link, so they are not forgotten.
 
 ### 7. Hand-off
 
 - Push and open the PR only when the user or policy authorizes it. Link it wherever the harness tracks PRs.
 - Wait for CI and the preview. Confirm the preview serves the head commit, and say what you could not verify (for
   example, an email-gated sign-in).
-- Update the ticket: preview, PR, commit, a [RESULT] with evidence and limits, a draft [LEARNING], and In Review. Never
+- Update the ticket **through jv-notion**: preview, PR, commit, a [RESULT] with evidence and limits, a draft [LEARNING],
+  and In Review. Never
   mark the ticket done without the client's approval.
-- Update living docs: glossary, PRD status, walkthrough, the role and permission pages when a permission changed, and
+- Update the living docs, following jv-notion's living-document rules: the glossary, PRD status, the walkthrough, the
+  role and permission pages when a permission changed, and
   the repo's `AGENTS.md` when a durable rule appeared.
 - Give the user a short manual test walkthrough. Explain domain words in plain language.
 
@@ -165,9 +184,10 @@ become a documented limit **and** a backlog ticket, so they are not forgotten.
 - [ ] Plan committed, with contract, side-channel checklist, ownership and tests
 - [ ] Shared contract code committed before spawning
 - [ ] Workers briefed with explicit paths, commands and commit rules; UI workers have their own port and tab
-- [ ] Orchestrator docs and ticket [PLAN] done while the workers run
+- [ ] jv-notion loaded; tickets set to working with [PLAN]; orchestrator docs done while the workers run
 - [ ] Full diff reviewed; full check and tests run by the orchestrator
 - [ ] Browser: main role and denied role, desktop and phone, core flow, console
 - [ ] Cross-vendor review, fixes, second pass
 - [ ] Limits documented and ticketed
-- [ ] PR (if authorized), CI, preview commit, ticket evidence, docs, walkthrough for the user
+- [ ] PR (if authorized), CI, preview commit, ticket evidence (jv-notion), living docs and role pages, walkthrough for
+      the user
