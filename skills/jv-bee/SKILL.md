@@ -133,7 +133,7 @@ file. Through **jv-notion**, set the tickets to working and post their [PLAN].
 Run it on the committed branch:
 
 ```bash
-codex exec -m gpt-6.1-sol -c 'model_reasoning_effort="high"' -s read-only "<brief>" > /tmp/<feature>-codex.log 2>&1
+codex exec -m gpt-6.1-sol -c 'model_reasoning_effort="high"' -s read-only "<brief>" < /dev/null > /tmp/<feature>-codex.log 2>&1
 ```
 
 The brief names:
@@ -147,6 +147,10 @@ The brief names:
 *(learned)* Do not use `codex exec review --base <branch> "<prompt>"`: the CLI refuses `--base` together with a
 custom prompt. The read-only sandbox cannot write a temporary directory for some test runners, so the reviewer may
 skip tests; you run them.
+
+*(learned, CA-40/CA-41)* Close stdin (`< /dev/null`) when `codex exec` runs in the background: otherwise it prints
+«Reading additional input from stdin...» and waits for ever, and the run looks busy while doing nothing. A minute after
+starting, check that the log has grown past the brief (hooks and tool calls appear).
 
 Treat each finding on its merits. Accept, fix and test it, or reject it with a reason. Never accept a finding blindly.
 
