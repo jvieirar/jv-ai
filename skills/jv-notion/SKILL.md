@@ -81,9 +81,11 @@ databases or Settings, or substitute similar-looking fields.
 Notion Settings is authoritative for development policy, including `worktrees`,
 `autoCommit`, `createPr` and `memory`. Read actual values and linked policy before
 work; do not maintain a competing policy copy in this skill or routing config.
-Surface unresolved policy conflicts. Supplied Settings/configuration does not grant
-authorization to push, deploy, create PRs or perform other external actions. Honor
-the user's authorization and repository instructions; policy cannot expand scope.
+Surface unresolved policy conflicts. For work linked to a ticket, Settings grant what
+they state: with `createPr: true`, pushing the feature branch and opening its PR are
+part of the task, without asking; `autoCommit` and `worktrees` apply the same way.
+Without a ticket, ask before pushing or opening a PR. Settings never authorize merging,
+deploying or customer approval; those stay with the user.
 
 Discover Notion capabilities and input schemas through the current client's tool
 catalog. Do not assume a tool prefix, client, discovery command or setup procedure.
