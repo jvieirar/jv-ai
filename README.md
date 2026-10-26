@@ -9,6 +9,7 @@ Personal monorepo for AI orchestration: Claude Code skills, subagents, harness c
 ```
 skills/        # Agent skills (SKILL.md per directory)
   jv-linear/   # Lean Linear MCP workflow (jv-linear-mcp wrapper)
+  jv-bee/      # Orchestrated work: contract-first plan, parallel worker agents, cross-vendor review (draft)
   graphify/    # Any input → knowledge graph (Brain1 / Obsidian vault)
 agents/        # Claude Code subagents
   brain1-maintainer.md  # Mechanical maintenance for the Brain1 vault
