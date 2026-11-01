@@ -167,6 +167,20 @@ and Related link, so they are not forgotten.
 - Push and open the PR only when the user or policy authorizes it. Link it wherever the harness tracks PRs.
 - Wait for CI and the preview. Confirm the preview serves the head commit, and say what you could not verify (for
   example, an email-gated sign-in).
+- **Screenshot evidence on the preview, posted to the ticket.** Once the preview serves the head commit, walk the core
+  flow there and capture it: each changed screen as the main role, the denied role's view, a 360 px phone, and any
+  confirmation or error state that the feature adds. Name each capture after what it proves, then upload them to the
+  ticket **through jv-notion**: a dated «Evidencia · ciclo N» section on the page with one caption per image (role, URL,
+  commit, what it shows), plus a short [NOTE] comment that points to it. Never save data in the preview just to get a
+  shot; cancel the dialog instead.
+  - Use the browser profile that keeps cookies (in T3 Code, `profileId: "default"`); an incognito tab loses the
+    sign-in when it closes.
+  - **Blocked** (an email-gated sign-in such as Cloudflare Access, a missing account, an unattached tab): ask the user
+    to sign in once, then continue. Do not guess around it.
+  - **If the user says they cannot check or sign in**, run the branch locally (the repo's «run locally» steps, a fresh
+    seed, its own port), take the same captures there, and label every caption «local, commit <sha>» instead of the
+    preview URL.
+  - The [RESULT] states which kind of evidence was posted (preview or local) and anything left unverified.
 - Update the ticket **through jv-notion**: preview, PR, commit, a [RESULT] with evidence and limits, a draft [LEARNING],
   and In Review. Never
   mark the ticket done without the client's approval.
@@ -195,3 +209,4 @@ and Related link, so they are not forgotten.
 - [ ] Limits documented and ticketed
 - [ ] PR (if authorized), CI, preview commit, ticket evidence (jv-notion), living docs and role pages, walkthrough for
       the user
+- [ ] Screenshots of the preview (or local run, if the user can't sign in) posted to the ticket with captions
