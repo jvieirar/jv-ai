@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "bun test scripts/sync-notion-skill.test.ts",
+    "check": "bun test scripts/sync-notion-skill.test.ts scripts/wave-profile.test.ts",
     "sync-notion-skill": "bun run scripts/sync-notion-skill.ts",
-    "sync-mcp": "bun run scripts/sync-mcp.ts"
+    "sync-mcp": "bun run scripts/sync-mcp.ts",
+    "wave-profile": "bun run scripts/wave-profile.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
