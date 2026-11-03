@@ -1,17 +1,17 @@
 [
   {
     "label": "CA-111",
-    "date": "2026-11-03T09:10:28.325Z",
+    "date": "2026-11-03T09:58:47.924Z",
     "project": "ola-2-siigo",
     "since": "2026-11-03T05:26:00.000Z",
-    "sessions": 18,
-    "claudeUsd": 65.85433010499999,
+    "sessions": 22,
+    "claudeUsd": 67.82178866999999,
     "reportedUsd": 0,
-    "claudeCalls": 1184,
-    "haikuCalls": 235,
+    "claudeCalls": 1372,
+    "haikuCalls": 380,
     "haikuCallsOver100k": 0,
-    "fileReadShare": 0.5906963939960884,
+    "fileReadShare": 0.5723188671717904,
     "subscriptionTokens": 193518359,
-    "remindDenials": 72
+    "remindDenials": 74
   }
 ]
