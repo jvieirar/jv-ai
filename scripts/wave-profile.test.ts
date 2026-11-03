@@ -1,10 +1,14 @@
 import { expect, test } from "bun:test";
 import {
   categorize,
+  categorizeOpencode,
   parseArgs,
   priceFor,
+  profileOpencodeSession,
   profileTranscript,
+  renderHtml,
   report,
+  summarizeWave,
 } from "./wave-profile";
 
 function assistant(
@@ -138,4 +142,74 @@ test("report shows totals and the whole-file read share", () => {
   expect(text).toContain("TOTAL 1 sessions");
   expect(text).toContain("remind denials=1");
   expect(text).toMatch(/whole-file and shell reads \d+%/);
+});
+
+const opencodeMessages = [
+  { type: "user", data: JSON.stringify({ content: [{ type: "text", text: "go" }] }) },
+  {
+    type: "assistant",
+    data: JSON.stringify({
+      model: { id: "deepseek-v4.1-flash", providerID: "opencode-go" },
+      cost: 0,
+      tokens: { input: 9_000, output: 60, reasoning: 600, cache: { read: 48_000, write: 0 } },
+      content: [
+        {
+          type: "tool",
+          name: "execute",
+          state: {
+            input: { code: "await tools.serena.serena_repl({code: 's.lsp.find_symbol(1)'})" },
+            content: [{ type: "text", text: "z".repeat(500) }],
+          },
+        },
+        {
+          type: "tool",
+          name: "read",
+          state: { input: { filePath: "/a.ts" }, content: "w".repeat(2000) },
+        },
+      ],
+    }),
+  },
+  { type: "assistant", data: "{broken" },
+];
+
+test("profiles OpenCode sessions with their reported cost and tool mix", () => {
+  const profile = profileOpencodeSession(opencodeMessages, "db#s", "O s", "Slice B")!;
+  expect(profile.source).toBe("opencode");
+  expect(profile.model).toBe("deepseek-v4.1-flash");
+  expect(profile.calls).toBe(1);
+  expect(profile.contextMax).toBe(57_000);
+  expect(profile.output).toBe(660);
+  expect(profile.costUsd).toBe(0);
+  expect(profile.resultBytes.serena).toBeGreaterThan(500);
+  expect(profile.resultBytes["read:file"]).toBe(2000);
+  expect(profile.firstPrompt).toBe("Slice B");
+  expect(categorizeOpencode("bash", { command: "pnpm test" })).toBe("bash:test/check");
+  expect(categorizeOpencode("grep", {})).toBe("search");
+});
+
+test("summarizes a wave and renders a self-contained chart", () => {
+  const claude = profileTranscript(transcript, "/x/s.jsonl", "P s")!;
+  const opencode = profileOpencodeSession(opencodeMessages, "db#s", "O s")!;
+  const wave = summarizeWave([claude, opencode], "CA-1", "proj", 0, 0);
+  expect(wave.haikuCalls).toBe(2);
+  expect(wave.haikuCallsOver100k).toBe(1);
+  expect(wave.claudeUsd).toBeCloseTo(claude.costUsd, 10);
+  expect(wave.subscriptionTokens).toBe(57_660);
+  expect(wave.fileReadShare).toBeGreaterThan(0);
+  const html = renderHtml([claude, opencode], wave, []);
+  expect(html).toContain("<svg");
+  expect(html).toContain("Table view");
+  expect(html).toContain("second wave");
+  const withHistory = renderHtml([claude], wave, [{ ...wave, label: "CA-0" }]);
+  expect(withHistory).toContain("Claude cost per wave");
+  expect(withHistory).toContain("CA-0");
+  expect(renderHtml([], wave)).toContain("<tbody></tbody>");
+});
+
+test("cost breakdown adds up to the session cost", () => {
+  const profile = profileTranscript(transcript)!;
+  const parts =
+    profile.cost.input + profile.cost.cacheWrite + profile.cost.cacheRead + profile.cost.output;
+  expect(parts).toBeCloseTo(profile.costUsd, 12);
+  expect(parseArgs(["--no-opencode", "--html", "/tmp/x.html", "--history", "CA-1"]).opencodeDb).toBeNull();
 });
