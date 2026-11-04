@@ -21,6 +21,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { homedir } from "node:os";
+import { parse as parseToml, stringify as stringifyToml } from "smol-toml";
 
 type ServerConfig = Record<string, unknown>;
 type Servers = Record<string, ServerConfig>;
@@ -168,6 +169,15 @@ function writeJsonPreserving(file: string, value: unknown): void {
   writeFileSync(file, JSON.stringify(value, null, indent) + "\n");
 }
 
+function readToml(file: string): Record<string, unknown> {
+  return parseToml(readFileSync(file, "utf8")) as Record<string, unknown>;
+}
+
+function writeToml(file: string, value: Record<string, unknown>): void {
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, stringifyToml(value));
+}
+
 // ----- Normalization for diff -------------------------------------------
 
 function normalize(s: ServerConfig): ServerConfig {
@@ -286,8 +296,41 @@ function syncTarget(target: Target, canonical: Servers, args: Args): TargetSumma
   };
 
   if (target.kind === "toml-root") {
-    summary.status = "skipped-unsupported";
-    summary.error = "TOML targets not yet implemented";
+    // TOML targets (e.g. Codex): mcp_servers key (snake_case, configurable via jsonPath)
+    const tomlKey = target.jsonPath ?? "mcp_servers";
+    let fileObj: Record<string, unknown>;
+    let existingServers: Servers;
+
+    if (!existsSync(path)) {
+      if (!target.createIfMissing) {
+        summary.status = "skipped-missing";
+        summary.error = `file does not exist and createIfMissing is false`;
+        return summary;
+      }
+      fileObj = { [tomlKey]: {} };
+      existingServers = {};
+    } else {
+      try {
+        fileObj = readToml(path);
+      } catch (e) {
+        summary.status = "error";
+        summary.error = `failed to parse TOML: ${(e as Error).message}`;
+        return summary;
+      }
+      existingServers = (fileObj[tomlKey] as Servers | undefined) ?? {};
+    }
+
+    const { merged, results } = mergeServers(canonical, existingServers, args);
+    summary.results = results;
+
+    const changed = results.some((r) => r.action === "added" || r.action === "conflict-forced");
+    if (!changed) return summary;
+
+    fileObj[tomlKey] = merged;
+    if (!args.dryRun) {
+      writeToml(path, fileObj);
+      summary.wrote = true;
+    }
     return summary;
   }
 

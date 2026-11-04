@@ -30,15 +30,25 @@
       "path": "~/Library/Application Support/Claude/claude_desktop_config.json",
       "kind": "json-root",
       "createIfMissing": false,
-      "enabled": false,
+      "enabled": true,
       "note": "Claude Desktop (macOS). Enable when you want the desktop app to share MCPs with the CLI."
+    },
+    {
+      "name": "gemini",
+      "path": "~/.gemini/settings.json",
+      "kind": "json-root",
+      "createIfMissing": true,
+      "enabled": true,
+      "note": "Google Gemini CLI (gemini). Reads mcpServers from ~/.gemini/settings.json."
     },
     {
       "name": "codex",
       "path": "~/.codex/config.toml",
       "kind": "toml-root",
-      "enabled": false,
-      "note": "Codex (TOML, different shape). Not yet implemented by sync-mcp — placeholder for when needed."
+      "jsonPath": "mcp_servers",
+      "createIfMissing": true,
+      "enabled": true,
+      "note": "OpenAI Codex CLI. Uses TOML; mcp_servers key maps to MCP server entries."
     }
   ]
 }
