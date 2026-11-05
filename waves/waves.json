@@ -13,5 +13,20 @@
     "fileReadShare": 0.5723188671717904,
     "subscriptionTokens": 193518359,
     "remindDenials": 74
+  },
+  {
+    "label": "CA-97",
+    "date": "2026-11-05T05:07:19.255Z",
+    "project": "CA-97-plantillas",
+    "since": "2026-11-04T12:49:19.000Z",
+    "sessions": 5,
+    "claudeUsd": 9.540682399999998,
+    "reportedUsd": 0,
+    "claudeCalls": 155,
+    "haikuCalls": 0,
+    "haikuCallsOver100k": 0,
+    "fileReadShare": 0.588339267160216,
+    "subscriptionTokens": 25828292,
+    "remindDenials": 12
   }
 ]
