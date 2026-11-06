@@ -4,6 +4,7 @@ import {
   categorizeOpencode,
   parseArgs,
   priceFor,
+  profileCodexRollout,
   profileOpencodeSession,
   profileTranscript,
   renderHtml,
@@ -212,4 +213,223 @@ test("cost breakdown adds up to the session cost", () => {
     profile.cost.input + profile.cost.cacheWrite + profile.cost.cacheRead + profile.cost.output;
   expect(parts).toBeCloseTo(profile.costUsd, 12);
   expect(parseArgs(["--no-opencode", "--html", "/tmp/x.html", "--history", "CA-1"]).opencodeDb).toBeNull();
+});
+
+const windowed = [
+  JSON.stringify({
+    type: "assistant",
+    timestamp: "2026-11-03T05:00:00.000Z",
+    message: { id: "before", model: "claude-haiku-5-5", usage: { input_tokens: 100 }, content: [] },
+  }),
+  JSON.stringify({
+    type: "user",
+    timestamp: "2026-11-03T05:10:00.000Z",
+    message: {
+      content: [{ type: "tool_use", id: "t9", name: "Bash", input: { command: "cat a" } }],
+    },
+  }),
+  JSON.stringify({
+    type: "assistant",
+    timestamp: "2026-11-03T06:00:00.000Z",
+    message: {
+      id: "inside",
+      model: "claude-haiku-5-5",
+      usage: { input_tokens: 200 },
+      content: [{ type: "tool_use", id: "t1", name: "Read", input: { file_path: "/a.ts" } }],
+    },
+  }),
+  JSON.stringify({
+    type: "user",
+    timestamp: "2026-11-03T06:01:00.000Z",
+    message: { content: [{ type: "tool_result", tool_use_id: "t1", content: "x".repeat(100) }] },
+  }),
+  JSON.stringify({
+    type: "assistant",
+    timestamp: "2026-11-03T07:00:00.000Z",
+    message: { id: "after", model: "claude-haiku-5-5", usage: { input_tokens: 300 }, content: [] },
+  }),
+].join("\n");
+
+test("counts only the calls and tool output inside the window", () => {
+  const window = {
+    since: Date.parse("2026-11-03T05:30:00Z"),
+    until: Date.parse("2026-11-03T06:30:00Z"),
+  };
+  const bounded = profileTranscript(windowed, "/x/w.jsonl", "w", window)!;
+  expect(bounded.calls).toBe(1);
+  expect(bounded.input).toBe(200);
+  expect(bounded.contextMin).toBe(200);
+  expect(bounded.toolCalls).toEqual({ Read: 1 });
+  expect(bounded.resultBytes["read:file"]).toBe(100);
+  expect(bounded.resultBytes["bash:read"]).toBeUndefined();
+  // Without a window, nothing is cut.
+  expect(profileTranscript(windowed)!.calls).toBe(3);
+});
+
+test("parses the window, included sessions and Codex flags", () => {
+  const now = Date.parse("2026-11-03T12:00:00Z");
+  const options = parseArgs(
+    [
+      "--project", "ola-2-siigo",
+      "--since", "2026-11-03T05:26:00Z",
+      "--until", "2026-11-03T13:10:00Z",
+      "--include-session", "119c7413-58bb",
+      "--include-session", "2a4f9e01-11aa",
+      "--codex-root", "/tmp/codex",
+    ],
+    now,
+  );
+  expect(options.project).toBe("ola-2-siigo");
+  expect(options.until).toBe(Date.parse("2026-11-03T13:10:00Z"));
+  expect(options.includeSessions).toEqual(["119c7413-58bb", "2a4f9e01-11aa"]);
+  expect(options.codexRoot).toBe("/tmp/codex");
+  const defaults = parseArgs([], now);
+  expect(defaults.until).toBe(now);
+  expect(defaults.includeSessions).toEqual([]);
+  expect(defaults.codexRoot).toContain(".codex");
+  expect(parseArgs(["--no-codex"]).codexRoot).toBeNull();
+  expect(() => parseArgs(["--until", "tomorrow"])).toThrow("--until needs an ISO date");
+});
+
+const codexLines = [
+  JSON.stringify({
+    timestamp: "2026-11-03T05:00:00.000Z",
+    type: "session_meta",
+    payload: {
+      cwd: "/home/grawar/cantaryjugar/cantar_y_jugar/.worktrees/ola-2-siigo",
+      model_provider: "openai",
+    },
+  }),
+  JSON.stringify({
+    timestamp: "2026-11-03T05:00:01.000Z",
+    type: "turn_context",
+    payload: { model: "gpt-6.1-sol" },
+  }),
+  // A cumulative total before the window becomes the baseline.
+  JSON.stringify({
+    timestamp: "2026-11-03T05:20:00.000Z",
+    type: "event_msg",
+    payload: {
+      type: "token_count",
+      info: {
+        total_token_usage: {
+          input_tokens: 1000,
+          cached_input_tokens: 400,
+          output_tokens: 50,
+          reasoning_output_tokens: 0,
+          total_tokens: 1050,
+        },
+        last_token_usage: { input_tokens: 1000 },
+      },
+    },
+  }),
+  // `info: null` lines carry no usage and are skipped.
+  JSON.stringify({
+    timestamp: "2026-11-03T05:30:00.000Z",
+    type: "event_msg",
+    payload: { type: "token_count", info: null },
+  }),
+  JSON.stringify({
+    timestamp: "2026-11-03T06:00:00.000Z",
+    type: "event_msg",
+    payload: {
+      type: "token_count",
+      info: {
+        total_token_usage: {
+          input_tokens: 5000,
+          cached_input_tokens: 2000,
+          output_tokens: 300,
+          reasoning_output_tokens: 0,
+          total_tokens: 5300,
+        },
+        last_token_usage: { input_tokens: 4000 },
+      },
+    },
+  }),
+  JSON.stringify({
+    timestamp: "2026-11-03T06:10:00.000Z",
+    type: "event_msg",
+    payload: {
+      type: "token_count",
+      info: {
+        total_token_usage: {
+          input_tokens: 8000,
+          cached_input_tokens: 3000,
+          output_tokens: 500,
+          reasoning_output_tokens: 0,
+          total_tokens: 8500,
+        },
+        last_token_usage: { input_tokens: 3000 },
+      },
+    },
+  }),
+  // After the window: ignored, so the wave does not pay for the rest of the rollout.
+  JSON.stringify({
+    timestamp: "2026-11-03T09:00:00.000Z",
+    type: "event_msg",
+    payload: {
+      type: "token_count",
+      info: {
+        total_token_usage: {
+          input_tokens: 90_000,
+          cached_input_tokens: 30_000,
+          output_tokens: 900,
+          total_tokens: 90_900,
+        },
+        last_token_usage: { input_tokens: 82_000 },
+      },
+    },
+  }),
+];
+
+test("profiles a Codex rollout by its cumulative totals inside the window", () => {
+  const window = {
+    since: Date.parse("2026-11-03T05:26:00Z"),
+    until: Date.parse("2026-11-03T07:00:00Z"),
+  };
+  const profile = profileCodexRollout(
+    codexLines,
+    "/x/rollout.jsonl",
+    "codex: 01a19f1d",
+    window,
+    "ola-2-siigo",
+  )!;
+  expect(profile.source).toBe("codex");
+  expect(profile.model).toBe("gpt-6.1-sol");
+  expect(profile.calls).toBe(2);
+  // (8000-1000) input total, of which (3000-400) was cached; output 500-50.
+  expect(profile.input).toBe(4400);
+  expect(profile.cacheRead).toBe(2600);
+  expect(profile.output).toBe(450);
+  expect(profile.cacheWrite).toBe(0);
+  expect(profile.costUsd).toBe(0);
+  expect(profile.contextMin).toBe(3000);
+  expect(profile.contextMax).toBe(4000);
+  expect(profile.contextAvg).toBe(3500);
+  expect(profile.toolCalls).toEqual({});
+  expect(
+    profileCodexRollout(codexLines, "", "x", window, "another-project"),
+  ).toBeNull();
+  expect(
+    profileCodexRollout(codexLines, "", "x", { since: Date.parse("2026-11-04T00:00:00Z"), until: Date.parse("2026-11-04T01:00:00Z") }, "ola-2-siigo"),
+  ).toBeNull();
+});
+
+test("summarizes Codex tokens apart from the other subscriptions", () => {
+  const window = {
+    since: Date.parse("2026-11-03T05:26:00Z"),
+    until: Date.parse("2026-11-03T07:00:00Z"),
+  };
+  const codex = profileCodexRollout(codexLines, "", "codex: x", window, "ola-2-siigo")!;
+  const opencode = profileOpencodeSession(opencodeMessages, "db#s", "O s")!;
+  const wave = summarizeWave([codex, opencode], "CA-1", "proj", 0, 0);
+  expect(wave.codexTokens).toBe(4400 + 2600 + 450);
+  expect(wave.subscriptionTokens).toBe(57_660);
+  expect(wave.reportedUsd).toBe(0);
+  expect(report([codex])).toContain("subscription");
+  // History entries written before codexTokens existed still render.
+  const { codexTokens: _, ...legacy } = wave;
+  const html = renderHtml([codex], legacy as typeof wave, [legacy as typeof wave]);
+  expect(html).toContain("Codex tokens (subscription)");
+  expect(html).toContain("0k");
 });

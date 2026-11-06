@@ -10,6 +10,12 @@
 //   bun run wave-profile --since 2026-11-03T00:00Z --project cantaryjugar --json
 //   bun run wave-profile --project CA-110-siigo --since 2026-11-04T09:00Z \
 //     --html /tmp/CA-110-cost.html --history CA-110
+//   bun run wave-profile --project ola-2-siigo --since 2026-11-03T05:26Z \
+//     --until 2026-11-03T13:10Z --include-session 119c7413-58bb-41bd-84c3-ea1a445f36c6
+//
+// A wave also runs from a main-checkout orchestrator thread and on Codex rollouts
+// from the ChatGPT subscription, so `--include-session` cuts a named session down to
+// the wave's window and rollouts under `--codex-root` are counted without USD.
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -37,7 +43,7 @@ export interface CostBreakdown {
 export interface SessionProfile {
   file: string;
   label: string;
-  source: "claude" | "opencode";
+  source: "claude" | "opencode" | "codex";
   model: string;
   calls: number;
   contextMin: number;
@@ -210,10 +216,25 @@ interface Block {
   text?: string;
 }
 
+export interface ProfileWindow {
+  since: number;
+  until: number;
+}
+
+// Without a window every line counts. With one, a line whose `timestamp` falls
+// outside [since, until] is skipped, so a long-running session can be cut down to
+// the stretch that belongs to the wave.
+function withinWindow(timestamp: string | undefined, window?: ProfileWindow): boolean {
+  if (!window) return true;
+  const at = Date.parse(timestamp ?? "");
+  return Number.isNaN(at) || (at >= window.since && at <= window.until);
+}
+
 export function profileTranscript(
   text: string,
   file = "",
   label = basename(file),
+  window?: ProfileWindow,
 ): SessionProfile | null {
   const callsById = new Map<string, Call>();
   const toolById = new Map<string, { name: string; input: unknown }>();
@@ -227,6 +248,7 @@ export function profileTranscript(
     if (!line.trim()) continue;
     let entry: {
       type?: string;
+      timestamp?: string;
       message?: {
         id?: string;
         model?: string;
@@ -241,6 +263,7 @@ export function profileTranscript(
     }
     const message = entry.message;
     if (!message) continue;
+    const counted = withinWindow(entry.timestamp, window);
     const blocks = Array.isArray(message.content)
       ? (message.content as Block[])
       : [];
@@ -253,6 +276,7 @@ export function profileTranscript(
     }
     // "<synthetic>" messages are written by Claude Code itself (errors, interruptions) with zero usage.
     if (
+      counted &&
       entry.type === "assistant" &&
       message.usage &&
       message.id &&
@@ -268,6 +292,7 @@ export function profileTranscript(
         model,
       });
     }
+    if (!counted) continue;
     for (const block of blocks) {
       if (block.type === "tool_use" && block.id && block.name) {
         if (!toolById.has(block.id))
@@ -367,12 +392,15 @@ export function profileOpencodeSession(
 
 interface Options {
   since: number;
+  until: number;
   project: string;
   sessions: string[];
+  includeSessions: string[];
   minCalls: number;
   json: boolean;
   roots: string[];
   opencodeDb: string | null;
+  codexRoot: string | null;
   html: string | null;
   history: string | null;
 }
@@ -380,8 +408,10 @@ interface Options {
 export function parseArgs(argv: string[], now = Date.now()): Options {
   const options: Options = {
     since: now - 24 * 3_600_000,
+    until: now,
     project: "cantaryjugar",
     sessions: [],
+    includeSessions: [],
     minCalls: 5,
     json: false,
     roots: [
@@ -389,6 +419,7 @@ export function parseArgs(argv: string[], now = Date.now()): Options {
       join(homedir(), ".claude-personal", "projects"),
     ],
     opencodeDb: join(homedir(), ".local", "share", "opencode", "opencode.db"),
+    codexRoot: join(homedir(), ".codex", "sessions"),
     html: null,
     history: null,
   };
@@ -404,12 +435,19 @@ export function parseArgs(argv: string[], now = Date.now()): Options {
       const since = Date.parse(value());
       if (Number.isNaN(since)) throw new Error("--since needs an ISO date");
       options.since = since;
+    } else if (flag === "--until") {
+      const until = Date.parse(value());
+      if (Number.isNaN(until)) throw new Error("--until needs an ISO date");
+      options.until = until;
     } else if (flag === "--project") options.project = value();
     else if (flag === "--session") options.sessions.push(value());
+    else if (flag === "--include-session") options.includeSessions.push(value());
     else if (flag === "--min-calls") options.minCalls = Number(value());
     else if (flag === "--root") options.roots = [value()];
     else if (flag === "--opencode-db") options.opencodeDb = value();
     else if (flag === "--no-opencode") options.opencodeDb = null;
+    else if (flag === "--codex-root") options.codexRoot = value();
+    else if (flag === "--no-codex") options.codexRoot = null;
     else if (flag === "--html") options.html = value();
     else if (flag === "--history") options.history = value();
     else if (flag === "--json") options.json = true;
@@ -456,6 +494,214 @@ async function transcripts(options: Options): Promise<string[]> {
       recent.push(file);
   }
   return recent;
+}
+
+// The orchestrator thread starts in the main checkout, so `--project` never picks
+// it up. Search every project folder for an explicitly named session and count only
+// the stretch inside the wave's window.
+async function includeProfiles(
+  options: Options,
+  skip: Set<string> = new Set(),
+): Promise<SessionProfile[]> {
+  if (options.includeSessions.length === 0) return [];
+  const window: ProfileWindow = { since: options.since, until: options.until };
+  const candidates: { file: string; label: string }[] = [];
+  for (const root of options.roots) {
+    let projects: string[];
+    try {
+      projects = await readdir(root);
+    } catch {
+      continue;
+    }
+    for (const folder of projects) {
+      const directory = join(root, folder);
+      for (const id of options.includeSessions) {
+        const short = id.slice(0, 8);
+        candidates.push({
+          file: join(directory, `${id}.jsonl`),
+          label: `home: ${short}`,
+        });
+        const subagents = join(directory, id, "subagents");
+        for (const name of (await readdir(subagents).catch(() => [] as string[]))
+          .filter((file) => file.endsWith(".jsonl"))
+          .sort())
+          candidates.push({
+            file: join(subagents, name),
+            label: `home: ${short}/${name.replace(/^agent-/, "").replace(/\.jsonl$/, "").slice(0, 8)}`,
+          });
+      }
+    }
+  }
+  const profiles: SessionProfile[] = [];
+  for (const { file, label } of candidates) {
+    if (skip.has(file)) continue;
+    let text: string;
+    try {
+      text = await readFile(file, "utf8");
+    } catch {
+      continue;
+    }
+    skip.add(file);
+    const profile = profileTranscript(text, file, label, window);
+    if (profile) profiles.push(profile);
+  }
+  return profiles;
+}
+
+interface CodexUsage {
+  input_tokens?: number;
+  cached_input_tokens?: number;
+  output_tokens?: number;
+  reasoning_output_tokens?: number;
+  total_tokens?: number;
+}
+
+interface CodexLine {
+  timestamp?: string;
+  type?: string;
+  payload?: {
+    cwd?: string;
+    model?: string;
+    model_provider?: string;
+    type?: string;
+    info?: {
+      total_token_usage?: CodexUsage;
+      last_token_usage?: CodexUsage;
+    } | null;
+  };
+}
+
+// Codex rollouts are cumulative token counters, so the wave's usage is the last
+// total inside the window minus the last total seen before it started. Codex bills
+// the ChatGPT subscription: no USD estimate, no tool mix, no first prompt.
+export function profileCodexRollout(
+  lines: string[],
+  file: string,
+  label: string,
+  window: ProfileWindow,
+  project: string,
+): SessionProfile | null {
+  let cwd = "";
+  let provider = "";
+  let model = "";
+  let baseline: CodexUsage | null = null;
+  let latest: CodexUsage | null = null;
+  let calls = 0;
+  const contexts: number[] = [];
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    let entry: CodexLine;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const payload = entry.payload ?? {};
+    if (entry.type === "session_meta") {
+      cwd = payload.cwd ?? cwd;
+      provider = payload.model_provider ?? provider;
+      continue;
+    }
+    if (entry.type === "turn_context") {
+      model = model || (payload.model ?? "");
+      continue;
+    }
+    if (entry.type !== "event_msg" || payload.type !== "token_count") continue;
+    const info = payload.info;
+    if (!info?.total_token_usage) continue;
+    const at = Date.parse(entry.timestamp ?? "");
+    if (Number.isNaN(at)) continue;
+    // The last cumulative total before the window is the baseline the wave's
+    // first call already includes.
+    if (at < window.since) {
+      baseline = info.total_token_usage;
+      continue;
+    }
+    if (at > window.until) continue;
+    calls++;
+    contexts.push(info.last_token_usage?.input_tokens ?? 0);
+    latest = info.total_token_usage;
+  }
+  if (!cwd || !slug(cwd).includes(slug(project))) return null;
+  if (!latest || calls === 0) return null;
+  const delta = (key: keyof CodexUsage) =>
+    Math.max(0, (latest?.[key] ?? 0) - (baseline?.[key] ?? 0));
+  const cacheRead = delta("cached_input_tokens");
+  return {
+    file,
+    label,
+    source: "codex",
+    model: model || provider,
+    calls,
+    contextMin: Math.min(...contexts),
+    contextAvg: Math.round(
+      contexts.reduce((a, b) => a + b, 0) / contexts.length,
+    ),
+    contextMax: Math.max(...contexts),
+    callsOver100k: contexts.filter((context) => context > LONG_CONTEXT).length,
+    input: Math.max(0, delta("input_tokens") - cacheRead),
+    cacheWrite: 0,
+    cacheRead,
+    output: delta("output_tokens"),
+    costUsd: 0,
+    cost: { input: 0, cacheWrite: 0, cacheRead: 0, output: 0 },
+    toolCalls: {},
+    resultBytes: {},
+    remindDenials: 0,
+    firstPrompt: "",
+  };
+}
+
+// Rollouts live under <root>/YYYY/MM/DD, dated by local time, so a UTC window can
+// straddle the folders: scan a day either side.
+function codexDays(root: string, since: number, until: number): string[] {
+  const first = new Date(since);
+  first.setHours(0, 0, 0, 0);
+  const last = new Date(until);
+  last.setHours(0, 0, 0, 0);
+  const span = Math.max(0, Math.round((last.getTime() - first.getTime()) / 86_400_000));
+  const days: string[] = [];
+  for (let offset = -1; offset <= span + 1; offset++) {
+    const date = new Date(
+      first.getFullYear(),
+      first.getMonth(),
+      first.getDate() + offset,
+    );
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    days.push(join(root, String(date.getFullYear()), month, day));
+  }
+  return days;
+}
+
+async function codexProfiles(options: Options): Promise<SessionProfile[]> {
+  if (!options.codexRoot) return [];
+  const window: ProfileWindow = { since: options.since, until: options.until };
+  const profiles: SessionProfile[] = [];
+  for (const directory of codexDays(options.codexRoot, options.since, options.until)) {
+    const files = (await readdir(directory).catch(() => [] as string[]))
+      .filter((name) => name.startsWith("rollout-") && name.endsWith(".jsonl"))
+      .sort();
+    for (const name of files) {
+      const file = join(directory, name);
+      let text: string;
+      try {
+        text = await readFile(file, "utf8");
+      } catch {
+        continue;
+      }
+      const id = name.replace(/^rollout-[-0-9T]+-/, "").replace(/\.jsonl$/, "");
+      const profile = profileCodexRollout(
+        text.split("\n"),
+        file,
+        `codex: ${id.slice(0, 8)}`,
+        window,
+        options.project,
+      );
+      if (profile) profiles.push(profile);
+    }
+  }
+  return profiles;
 }
 
 async function opencodeProfiles(options: Options): Promise<SessionProfile[]> {
@@ -516,6 +762,14 @@ const k = (tokens: number) =>
 const percent = (part: number, whole: number) =>
   whole ? `${Math.round((100 * part) / whole)}%` : "-";
 
+// Only Claude Code is metered per token here; OpenCode reports its own cost and
+// Codex runs on the ChatGPT subscription, so neither gets a USD estimate.
+function costCell(profile: SessionProfile): string {
+  if (profile.source === "claude") return `$${profile.costUsd.toFixed(2)}`;
+  if (profile.source === "codex") return "subscription";
+  return `$${profile.costUsd.toFixed(2)} (reported)`;
+}
+
 export interface WaveSummary {
   label: string;
   date: string;
@@ -529,6 +783,7 @@ export interface WaveSummary {
   haikuCallsOver100k: number;
   fileReadShare: number;
   subscriptionTokens: number;
+  codexTokens: number;
   remindDenials: number;
 }
 
@@ -547,6 +802,7 @@ export function summarizeWave(
   const allBytes = Object.values(bytes).reduce((a, b) => a + (b ?? 0), 0);
   const claude = profiles.filter((profile) => profile.source === "claude");
   const opencode = profiles.filter((profile) => profile.source === "opencode");
+  const codex = profiles.filter((profile) => profile.source === "codex");
   const haiku = claude.filter((profile) => /haiku/i.test(profile.model));
   return {
     label,
@@ -572,6 +828,11 @@ export function summarizeWave(
         profile.cacheRead +
         profile.cacheWrite +
         profile.output,
+      0,
+    ),
+    codexTokens: codex.reduce(
+      (total, profile) =>
+        total + profile.input + profile.cacheRead + profile.output,
       0,
     ),
     remindDenials: profiles.reduce(
@@ -602,7 +863,7 @@ export function report(profiles: SessionProfile[]): string {
       .map(([category, value]) => `${category} ${percent(value ?? 0, bytes)}`)
       .join(", ");
     lines.push(
-      `${profile.label}  ${profile.model.replace("claude-", "")}  $${profile.costUsd.toFixed(2)}  calls=${profile.calls}  ctx ${k(profile.contextMin)}/${k(profile.contextAvg)}/${k(profile.contextMax)}  >100k=${percent(profile.callsOver100k, profile.calls)}  cacheRead=${(profile.cacheRead / 1e6).toFixed(1)}M  remind=${profile.remindDenials}`,
+      `${profile.label}  ${profile.model.replace("claude-", "")}  ${costCell(profile)}  calls=${profile.calls}  ctx ${k(profile.contextMin)}/${k(profile.contextAvg)}/${k(profile.contextMax)}  >100k=${percent(profile.callsOver100k, profile.calls)}  cacheRead=${(profile.cacheRead / 1e6).toFixed(1)}M  remind=${profile.remindDenials}`,
       `   results ${Math.round(bytes / 1000)}KB: ${mix || "none"}`,
       `   first: ${profile.firstPrompt}`,
     );
@@ -611,7 +872,7 @@ export function report(profiles: SessionProfile[]): string {
   const fileReads = (totals["read:file"] ?? 0) + (totals["bash:read"] ?? 0);
   lines.push(
     "",
-    `TOTAL ${profiles.length} sessions  $${cost.toFixed(2)} (Claude: API-equivalent estimate; OpenCode: as reported)  remind denials=${denials}`,
+    `TOTAL ${profiles.length} sessions  $${cost.toFixed(2)} (Claude: API-equivalent estimate; OpenCode: as reported; Codex: subscription)  remind denials=${denials}`,
     `   whole-file and shell reads ${percent(fileReads, allBytes)} of tool-result bytes; serena ${percent(totals.serena ?? 0, allBytes)}; ccc ${percent(totals.ccc ?? 0, allBytes)}; context-mode ${percent(totals["context-mode"] ?? 0, allBytes)}; preview ${percent(totals.preview ?? 0, allBytes)}`,
   );
   return lines.join("\n");
@@ -678,7 +939,7 @@ export function renderHtml(
   const tableRows = sorted
     .map(
       (profile) =>
-        `<tr><td>${escapeHtml(profile.label)}</td><td>${escapeHtml(profile.model)}</td><td>${profile.calls}</td><td>${k(profile.contextAvg)}</td><td>${percent(profile.callsOver100k, profile.calls)}</td><td>${profile.source === "opencode" ? `$${profile.costUsd.toFixed(2)} (reported)` : `$${profile.costUsd.toFixed(2)}`}</td><td>${k(profile.input + profile.cacheRead + profile.cacheWrite + profile.output)}</td><td>${profile.remindDenials}</td></tr>`,
+        `<tr><td>${escapeHtml(profile.label)}</td><td>${escapeHtml(profile.model)}</td><td>${profile.calls}</td><td>${k(profile.contextAvg)}</td><td>${percent(profile.callsOver100k, profile.calls)}</td><td>${costCell(profile)}</td><td>${k(profile.input + profile.cacheRead + profile.cacheWrite + profile.output)}</td><td>${profile.remindDenials}</td></tr>`,
     )
     .join("");
   const tile = (value: string, caption: string) =>
@@ -707,6 +968,7 @@ td,th{text-align:left;padding:3px 6px;border-bottom:1px solid var(--border,#ddd)
 <div class="tiles">
 ${tile(`$${wave.claudeUsd.toFixed(2)}`, "Claude, API-equivalent estimate")}
 ${tile(k(wave.subscriptionTokens), "OpenCode tokens (subscription)")}
+${tile(k(wave.codexTokens ?? 0), "Codex tokens (subscription)")}
 ${tile(percent(wave.haikuCallsOver100k, wave.haikuCalls), "Haiku calls above 100k (target under 5%)")}
 ${tile(`${Math.round(wave.fileReadShare * 100)}%`, "tool output from whole-file and shell reads")}
 </div>
@@ -739,7 +1001,8 @@ async function readHistory(): Promise<WaveSummary[]> {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const profiles: SessionProfile[] = [];
-  for (const file of await transcripts(options)) {
+  const files = await transcripts(options);
+  for (const file of files) {
     const profile = profileTranscript(
       await readFile(file, "utf8"),
       file,
@@ -747,7 +1010,12 @@ async function main() {
     );
     if (profile && profile.calls >= options.minCalls) profiles.push(profile);
   }
+  const included = await includeProfiles(options, new Set(files));
+  for (const profile of included)
+    if (profile.calls >= options.minCalls) profiles.push(profile);
   for (const profile of await opencodeProfiles(options))
+    if (profile.calls >= options.minCalls) profiles.push(profile);
+  for (const profile of await codexProfiles(options))
     if (profile.calls >= options.minCalls) profiles.push(profile);
 
   const label = options.history ?? options.project;
