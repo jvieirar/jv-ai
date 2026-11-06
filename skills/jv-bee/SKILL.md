@@ -26,9 +26,10 @@ worktrees) always win over this skill. This skill decides **who does what and in
 tokens and grew to 200–750k because nothing compacted. Haiku sat above its 100k price tier on 94–98% of calls. The
 orchestrator averaged 336k over 467 calls, about $0.07 for every Notion update or status check. Whole-file reads
 were 36–69% of what workers read, and `preview_snapshot` images were 52% of the UI worker's and up to 84% of the
-orchestrator's. *(learned, wave 2)* About $82 API-equivalent: the two Opus children of the risky slices were over half
-of it (contexts of ~280k on average), whole-file and shell reads were still 69% of all tool-result bytes, and 91 calls
-were denied by the repo's grep hook because the briefs prescribed `rg`/`sed` instead of Serena. So:
+orchestrator's. *(learned, wave 2)* $96 API-equivalent over 05:26–13:10 UTC, home thread and Juan's review rounds
+included (`waves.json` entry CA-111; Opus was $95 of it). The two Opus children of the risky slices were over half
+(contexts of ~280k on average), whole-file and shell reads were still 68% of all tool-result bytes, and 94 calls were
+denied by the repo's grep hook because the briefs prescribed `rg`/`sed` instead of Serena. So:
 
 - **Short-lived contexts.** Fresh phase children, fresh workers for fix rounds, a clerk for Notion.
 - **Haiku capped at 100k** (`autoCompactWindow`), with progress kept on disk so compaction loses nothing.
@@ -485,7 +486,7 @@ cd /home/grawar/development/ai/jv-ai && bun run wave-profile \
   - every Opus worker uses Serena, or the report says why not;
   - whole-file and shell reads under 50% of tool-result bytes;
   - no grep-hook denials caused by the briefs;
-  - wave cost below wave 2's (about $82 API-equivalent, home included) for a comparable scope.
+  - wave cost below wave 2's ($96 API-equivalent, home and review rounds included) for a comparable scope.
 - Never present a worker's or reviewer's result as verified until you have checked its evidence.
 - When the user asks how the setup performed, give an honest read with evidence: what each role caught, what it
   missed, what the plan got wrong, and which fallbacks fired.
